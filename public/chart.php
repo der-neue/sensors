@@ -5,16 +5,25 @@
      * Date: 2021-05-01, 15:52:18
      */
     require_once 'assets/php/dbConn.php';
+    date_default_timezone_set('CET');
+    $timestamps = array();
     if(!empty($_GET['id'])){
         if(strpos($_GET['id'], ' ') === FALSE){
             $stmt = $dbHandler->prepare("SELECT * FROM ".$_GET['id']);
             $stmt->execute();
             $result = $stmt->fetchAll();
 
-            $stmt = $dbHandler->prepare("SELECT UNIX_TIMESTAMP() FROM ".$_GET['id']);
-            $stmt->execute();
-            $timestamps = $stmt->fetchAll();
+            // $stmt = $dbHandler->prepare("SELECT UNIX_TIMESTAMP() FROM ".$_GET['id']);
+            // $stmt->execute();
+            // $timestamps = $stmt->fetchAll();
+            for ($i=0; $i < sizeof($result); $i++) { 
+                $result[$i]['zeitstempel'] = strtotime($result[$i]['zeitstempel']);
+            }
         }
+    }
+
+    function formatTimestamp($timestamp) {
+        return date('d\-m\-Y H\:i', $timestamp);
     }
 ?>
 
@@ -82,7 +91,7 @@
                             //     echo '"'.$key['zeitstempel'].'",';
                             // }
                             for ($i=sizeof($result)-20; $i < sizeof($result); $i++) { 
-                                echo '"'. $result[$i]['zeitstempel'] .'",';
+                                echo '"'. formatTimestamp($result[$i]['zeitstempel']) .'",';
                             }
                         ?>
                     ],
@@ -129,46 +138,13 @@
                 }
             });
 
-            document.querySelector('#chart2').addEventListener('click', () => {
-                showBattery = true;
-                chart.config.data = {
-                    labels: [
-                        <?php
-                            for ($i=sizeof($result)-20; $i < sizeof($result); $i++) { 
-                                echo '"'. $result[$i]['zeitstempel'] .'",';
-                            }
-                        ?>
-                    ],
-                    datasets: [{
-                        label: 'Batteriespannung in V',
-                        data: [
-                            <?php
-                                for ($i=sizeof($result)-20; $i < sizeof($result); $i++) { 
-                                    echo '"'. $result[$i]['batteriespannung'] .'",';
-                                }
-                            ?>
-                        ],
-                        borderColor : 'rgb(231, 76, 60)',
-                        tension: .25,
-                        
-                    }],
-                    options: {
-                        scales: {
-                            'B': {
-                                display: false
-                            }
-                        }
-                    }
-                };
-                chart.update();
-            });
             document.querySelector('#chart1').addEventListener('click', () => {
                 showBattery = false;
                 chart.config.data = {
                     labels: [
                         <?php
                             for ($i=sizeof($result)-20; $i < sizeof($result); $i++) { 
-                                echo '"'. $result[$i]['zeitstempel'] .'",';
+                                echo '"'. formatTimestamp($result[$i]['zeitstempel']) .'",';
                             }
                         ?>
                     ],
@@ -200,13 +176,85 @@
                 };
                 chart.update();
             });
+            document.querySelector('#chart2').addEventListener('click', () => {
+                showBattery = true;
+                chart.config.data = {
+                    labels: [
+                        <?php
+                            for ($i=sizeof($result)-50; $i < sizeof($result); $i++) { 
+                                echo '"'. formatTimestamp($result[$i]['zeitstempel']) .'",';
+                            }
+                        ?>
+                    ],
+                    datasets: [{
+                        label: 'Batteriespannung in V',
+                        data: [
+                            <?php
+                                for ($i=sizeof($result)-50; $i < sizeof($result); $i++) { 
+                                    echo '"'. $result[$i]['batteriespannung'] .'",';
+                                }
+                            ?>
+                        ],
+                        borderColor : 'rgb(231, 76, 60)',
+                        tension: .25,
+                    }],
+                    options: {
+                        scales: {
+                            'B': {
+                                display: false
+                            }
+                        }
+                    }
+                };
+                chart.update();
+            });
 
+            document.querySelector('#chart3').addEventListener('click', ()=>{
+                chart.config.data = {
+                    labels: [
+                        <?php
+                            foreach ($result as $key) {
+                                if ($key['zeitstempel'] > strtotime('today midnight'))
+                                    echo '"'.formatTimestamp($key['zeitstempel']).'",';
+                            }
+                        ?>
+                    ],
+                    datasets: [{
+                        label: 'Temperatur in °C',
+                        data: [
+                            <?php
+                                foreach ($result as $key) {
+                                    if ($key['zeitstempel'] > strtotime('today midnight'))
+                                        echo '"'. $key['temperatur']/100 .'",';
+                                }
+                            ?>
+                        ],
+                        borderColor: 'rgb(243, 156, 18)',
+                        tension: 0.25,
+                        yAxisID: 'A',
+                    },{
+                        label: 'Luftfeuchtigkeit in %',
+                        data: [
+                            <?php 
+                                foreach ($result as $key) {
+                                    if ($key['zeitstempel'] > strtotime('today midnight'))
+                                        echo '"'. $key['luftfeuchte']/100 .'",';
+                                }
+                            ?>
+                        ],
+                        borderColor: 'rgb(236, 240, 241)',
+                        tension: 0.25,
+                        yAxisID: 'B',
+                    }],
+                };
+                chart.update();
+            });
             document.querySelector('#chart6').addEventListener('click', ()=>{
                 chart.config.data = {
                     labels: [
                         <?php
                             foreach ($result as $key) {
-                                echo '"'.$key['zeitstempel'].'",';
+                                echo '"'.formatTimestamp($key['zeitstempel']).'",';
                             }
                         ?>
                     ],
