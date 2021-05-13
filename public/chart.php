@@ -1,0 +1,427 @@
+<?php
+    /**
+     * File: index.php
+     * Author: PreTooo
+     * Date: 2021-05-01, 15:52:18
+     */
+    require_once 'assets/php/dbConn.php';
+    date_default_timezone_set('CET');
+    $timestamps = array();
+    if(!empty($_GET['id'])){
+        if(strpos($_GET['id'], ' ') === FALSE){
+            $stmt = $dbHandler->prepare("SELECT * FROM ".$_GET['id']);
+            $stmt->execute();
+            $result = $stmt->fetchAll();
+
+            // $stmt = $dbHandler->prepare("SELECT UNIX_TIMESTAMP() FROM ".$_GET['id']);
+            // $stmt->execute();
+            // $timestamps = $stmt->fetchAll();
+            for ($i=0; $i < sizeof($result); $i++) { 
+                $result[$i]['zeitstempel'] = strtotime($result[$i]['zeitstempel']);
+            }
+        }
+    }
+
+    function formatTimestamp($timestamp) {
+        return date('d\-m\-Y H\:i', $timestamp);
+    }
+?>
+
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+        <title>Sensors</title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-eOJMYsd53ii+scO/bJGFsiCZc+5NDVN2yr8+0RDqr0Ql0h+rP48ckxlpbzKgwra6" crossorigin="anonymous">
+        <link rel="stylesheet" href="assets/css/main.css">
+    </head>
+    <body class="bg-dark text-light">
+        <div class="w-100" style="height: 1em;"></div>
+        <div class="container-fluid">
+            <div class="text-center">
+                <h2><a href="index.php" class="text-light">Sensor</a> &raquo; <?php echo $_GET['id'] ?></h2>
+                <hr>
+            </div>
+        </div>
+
+        <div class="container-fluid centered">
+            <div class="btn-toolbar" role="toolbar" aria-label="Toolbar with button groups">
+                <div class="btn-group me-2" role="group" aria-label="First group">
+                    <button type="button" class="btn btn-outline-light" id="chart1">Temperatur + Luftfeuchtigkeit</button>
+                    <button type="button" class="btn btn-outline-light" id="chart2">Batterie <small>letzten 2 Tage</small></button>
+                </div>
+                <div class="w-100" style="height: 1em;"></div>
+                <div class="btn-group me-2" role="group" aria-label="Second group">
+                    <button type="button" class="btn btn-outline-light" id="chart3">Heute</button>
+                    <button type="button" class="btn btn-outline-light" id="chart4">Diese Woche</button>
+                    <button type="button" class="btn btn-outline-light" id="chart5">Diesen Monat</button>
+                    <button type="button" class="btn btn-outline-light" id="chart6">Gesamter Zeitraum</button>
+                </div>
+            </div>
+        </div>
+            <div class="w-100" style="height: 2em;"></div>
+        <div class="container-fluid">
+            <canvas id="chart" style="position: relative; height:40vh; width:80vw">
+                <div class="alert alert-danger" role="alert">
+                    <h4 class="alert-heading">Canvas?</h4>
+                    <hr>
+                    <span>
+                        Es sieht so aus, als würde dein Browser <code>Chart.JS</code>
+                        nicht richtig laden können oder es blockieren.
+                        <br>
+                        Bitte benutze stattdessen Chrome oder Firefox.
+                    </span>
+                </div>
+            </canvas>
+        </div>
+
+        <script src="https://cdn.jsdelivr.net/npm/chart.js@3.2.0/dist/chart.min.js"></script>
+        <script>
+            let showBattery;
+            var ctx = document.getElementById('chart').getContext('2d');
+            var chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [
+                        <?php
+                            // foreach ($result as $key) {
+                            //     echo '"'.$key['zeitstempel'].'",';
+                            // }
+                            if (sizeof($result) > 20) {
+                                for ($i=sizeof($result)-20; $i < sizeof($result); $i++) { 
+                                    echo '"'. formatTimestamp($result[$i]['zeitstempel']) .'",';
+                                }
+                            }
+                            if (sizeof($result) <= 20) {
+                                foreach ($result as $key) {
+                                    echo '"'.formatTimestamp($key['zeitstempel']).'",';
+                                }
+                            }
+                        ?>
+                    ],
+                    datasets: [{
+                        label: 'Temperatur in °C',
+                        data: [
+                            <?php
+                                // foreach ($result as $key) {
+                                //     echo '"'. $key['temperatur']/100 .'",';
+                                // }
+                                if (sizeof($result) > 20) {
+                                    for ($i=sizeof($result)-20; $i < sizeof($result); $i++) { 
+                                        echo '"'. $result[$i]['temperatur']/100 .'",';
+                                    }
+                                }
+                                if (sizeof($result) <= 20) {
+                                    foreach ($result as $key) {
+                                        echo '"'.$key['temperatur']/100 .'",';
+                                    }
+                                }
+                            ?>
+                        ],
+                        borderColor: 'rgb(243, 156, 18)',
+                        tension: 0.25,
+                        yAxisID: 'A',
+                    },{
+                        label: 'Luftfeuchtigkeit in %',
+                        data: [
+                            <?php 
+                                if (sizeof($result) > 20) {
+                                    for ($i=sizeof($result)-20; $i < sizeof($result); $i++) { 
+                                        echo '"'. $result[$i]['luftfeuchte']/100 .'",';
+                                    }
+                                }
+                                if (sizeof($result) <= 20) {
+                                    foreach ($result as $key) {
+                                        echo '"'.$key['luftfeuchte']/100 .'",';
+                                    }
+                                }
+                            ?>
+                        ],
+                        borderColor: 'rgb(236, 240, 241)',
+                        tension: 0.25,
+                        yAxisID: 'B',
+                    }],
+                },
+                options: {
+                    scales: {
+                        'A': {
+                            type: 'linear',
+                            position: 'left'
+                        },
+                        'B': {
+                            type: 'linear',
+                            position: 'right'
+                        }
+                    }
+                }
+            });
+
+            document.querySelector('#chart1').addEventListener('click', () => {
+                showBattery = false;
+                chart.config.data = {
+                    labels: [
+                        <?php
+                            if (sizeof($result) > 20) {
+                                for ($i=sizeof($result)-20; $i < sizeof($result); $i++) { 
+                                    echo '"'. formatTimestamp($result[$i]['zeitstempel']) .'",';
+                                }
+                            }
+                            if (sizeof($result) <= 20) {
+                                foreach ($result as $key) {
+                                    echo '"'.formatTimestamp($key['zeitstempel']).'",';
+                                }
+                            }
+                        ?>
+                    ],
+                    datasets: [{
+                        label: 'Temperatur in °C',
+                        data: [
+                            <?php
+                                if (sizeof($result) > 20) {
+                                    for ($i=sizeof($result)-20; $i < sizeof($result); $i++) { 
+                                        echo '"'.$result[$i]['temperatur']/100 .'",';
+                                    }
+                                }
+                                if (sizeof($result) <= 20) {
+                                    foreach ($result as $key) {
+                                        echo '"'.$key['temperatur']/100 .'",';
+                                    }
+                                }
+                            ?>
+                        ],
+                        borderColor: 'rgb(243, 156, 18)',
+                        tension: 0.25,
+                        yAxisID: 'A',
+                    },{
+                        label: 'Luftfeuchtigkeit in %',
+                        data: [
+                            <?php 
+                                if (sizeof($result) > 20) {
+                                    for ($i=sizeof($result)-20; $i < sizeof($result); $i++) { 
+                                        echo '"'.$result[$i]['luftfeuchte']/100 .'",';
+                                    }
+                                }
+                                if (sizeof($result) <= 20) {
+                                    foreach ($result as $key) {
+                                        echo '"'.$key['luftfeuchte']/100 .'",';
+                                    }
+                                }
+                            ?>
+                        ],
+                        borderColor: 'rgb(236, 240, 241)',
+                        tension: 0.25,
+                        yAxisID: 'B',
+                    }],
+                };
+                chart.update();
+            });
+            document.querySelector('#chart2').addEventListener('click', () => {
+                showBattery = true;
+                chart.config.data = {
+                    labels: [
+                        <?php
+                            if (sizeof($result) > 20) {
+                                for ($i=sizeof($result)-20; $i < sizeof($result); $i++) { 
+                                    echo '"'. formatTimestamp($result[$i]['zeitstempel']) .'",';
+                                }
+                            }
+                            if (sizeof($result) <= 20) {
+                                foreach ($result as $key) {
+                                    echo '"'.formatTimestamp($key['zeitstempel']).'",';
+                                }
+                            }
+                        ?>
+                    ],
+                    datasets: [{
+                        label: 'Batteriespannung in V',
+                        data: [
+                            <?php
+                                if (sizeof($result) > 20) {
+                                    for ($i=sizeof($result)-20; $i < sizeof($result); $i++) { 
+                                        echo '"'.$result[$i]['batteriespannung']/100 .'",';
+                                    }
+                                }
+                                if (sizeof($result) <= 20) {
+                                    foreach ($result as $key) {
+                                        echo '"'.$key['batteriespannung']/100 .'",';
+                                    }
+                                }
+                            ?>
+                        ],
+                        borderColor : 'rgb(231, 76, 60)',
+                        tension: .25,
+                    }],
+                    options: {
+                        scales: {
+                            'B': {
+                                display: false
+                            }
+                        }
+                    }
+                };
+                chart.update();
+            });
+
+            document.querySelector('#chart3').addEventListener('click', ()=>{
+                chart.config.data = {
+                    labels: [
+                        <?php
+                            foreach ($result as $key) {
+                                if ($key['zeitstempel'] > strtotime('today midnight'))
+                                    echo '"'.formatTimestamp($key['zeitstempel']).'",';
+                            }
+                        ?>
+                    ],
+                    datasets: [{
+                        label: 'Temperatur in °C',
+                        data: [
+                            <?php
+                                foreach ($result as $key) {
+                                    if ($key['zeitstempel'] > strtotime('today midnight'))
+                                        echo '"'. $key['temperatur']/100 .'",';
+                                }
+                            ?>
+                        ],
+                        borderColor: 'rgb(243, 156, 18)',
+                        tension: 0.25,
+                        yAxisID: 'A',
+                    },{
+                        label: 'Luftfeuchtigkeit in %',
+                        data: [
+                            <?php 
+                                foreach ($result as $key) {
+                                    if ($key['zeitstempel'] > strtotime('today midnight'))
+                                        echo '"'. $key['luftfeuchte']/100 .'",';
+                                }
+                            ?>
+                        ],
+                        borderColor: 'rgb(236, 240, 241)',
+                        tension: 0.25,
+                        yAxisID: 'B',
+                    }],
+                };
+                chart.update();
+            });
+            document.querySelector('#chart4').addEventListener('click', ()=>{
+                chart.config.data = {
+                    labels: [
+                        <?php
+                            foreach ($result as $key) {
+                                if (($key['zeitstempel'] > strtotime('last sunday midnight')) && (($key['zeitstempel'] < strtotime('this sunday midnight'))))
+                                    echo '"'.formatTimestamp($key['zeitstempel']).'",';
+                            }
+                        ?>
+                    ],
+                    datasets: [{
+                        label: 'Temperatur in °C',
+                        data: [
+                            <?php
+                                foreach ($result as $key) {
+                                    if (($key['zeitstempel'] > strtotime('last sunday midnight')) && (($key['zeitstempel'] < strtotime('this sunday midnight'))))
+                                        echo '"'. $key['temperatur']/100 .'",';
+                                }
+                            ?>
+                        ],
+                        borderColor: 'rgb(243, 156, 18)',
+                        tension: 0.25,
+                        yAxisID: 'A',
+                    },{
+                        label: 'Luftfeuchtigkeit in %',
+                        data: [
+                            <?php 
+                                foreach ($result as $key) {
+                                    if (($key['zeitstempel'] > strtotime('last sunday midnight')) && (($key['zeitstempel'] < strtotime('this sunday midnight'))))
+                                        echo '"'. $key['luftfeuchte']/100 .'",';
+                                }
+                            ?>
+                        ],
+                        borderColor: 'rgb(236, 240, 241)',
+                        tension: 0.25,
+                        yAxisID: 'B',
+                    }],
+                };
+                chart.update();
+            });
+            document.querySelector('#chart5').addEventListener('click', ()=>{
+                chart.config.data = {
+                    labels: [
+                        <?php
+                            foreach ($result as $key) {
+                                if (date('m', $key['zeitstempel']) === date('m'))
+                                    echo '"'.formatTimestamp($key['zeitstempel']).'",';
+                            }
+                        ?>
+                    ],
+                    datasets: [{
+                        label: 'Temperatur in °C',
+                        data: [
+                            <?php
+                                foreach ($result as $key) {
+                                    if (date('m', $key['zeitstempel']) === date('m'))
+                                        echo '"'. $key['temperatur']/100 .'",';
+                                }
+                            ?>
+                        ],
+                        borderColor: 'rgb(243, 156, 18)',
+                        tension: 0.25,
+                        yAxisID: 'A',
+                    },{
+                        label: 'Luftfeuchtigkeit in %',
+                        data: [
+                            <?php 
+                                foreach ($result as $key) {
+                                    if (date('m', $key['zeitstempel']) === date('m'))
+                                        echo '"'. $key['luftfeuchte']/100 .'",';
+                                }
+                            ?>
+                        ],
+                        borderColor: 'rgb(236, 240, 241)',
+                        tension: 0.25,
+                        yAxisID: 'B',
+                    }],
+                };
+                chart.update();
+            });
+            document.querySelector('#chart6').addEventListener('click', ()=>{
+                chart.config.data = {
+                    labels: [
+                        <?php
+                            foreach ($result as $key) {
+                                echo '"'.formatTimestamp($key['zeitstempel']).'",';
+                            }
+                        ?>
+                    ],
+                    datasets: [{
+                        label: 'Temperatur in °C',
+                        data: [
+                            <?php
+                                foreach ($result as $key) {
+                                    echo '"'. $key['temperatur']/100 .'",';
+                                }
+                            ?>
+                        ],
+                        borderColor: 'rgb(243, 156, 18)',
+                        tension: 0.25,
+                        yAxisID: 'A',
+                    },{
+                        label: 'Luftfeuchtigkeit in %',
+                        data: [
+                            <?php 
+                                foreach ($result as $key) {
+                                    echo '"'. $key['luftfeuchte']/100 .'",';
+                                }
+                            ?>
+                        ],
+                        borderColor: 'rgb(236, 240, 241)',
+                        tension: 0.25,
+                        yAxisID: 'B',
+                    }],
+                };
+                chart.update();
+            });
+        </script>
+    </body>
+</html>
